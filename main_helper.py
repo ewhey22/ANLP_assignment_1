@@ -55,11 +55,11 @@ char_set = sorted(set(char_list))
 # cartesian product of all possible bigrams based on character set. len = 841
 all_bi_counts = list(product(char_set, char_set))
 
-# all_tri_counts holds a dictionary of all possible bigrams from vocabulary (all_bi_counts) as keys, with values of each bigram being another dictionary of trigrams as keys
-# the values stored in trigram keys have count values based on training data 
+# all_tri_counts holds a dictionary of all possible bigrams from vocabulary (all_bi_counts) as keys, with the values of each bigram being another dictionary: here, keys
+# are all members of vocab and the corresponding values stored have the count values based on training data 
 all_tri_counts = {}
 for i in all_bi_counts:
-    all_tri_counts[i] = {i:0 for i in char_set}
+    all_tri_counts[i] = {c:0 for c in char_set}
 
 
 
@@ -67,7 +67,7 @@ print(all_tri_counts)
 
 
 ## EXAMPLE OF HOW TO IMPOSE tri_counts ONTO all_tri_counts:
-# key=ti: value={keys=(vocab_i:values=count in tri_counts}
+# key=ab:value={keys=(vocab_i:values=count in tri_counts}
 
 # for bigram in all_tri_counts.keys(): ## Look through every possible bigram from vocab 
 #   for i in tri_counts.keys(): ## for every possible bigram from vocab, look through trigram list tri_counts
@@ -87,5 +87,3 @@ print(all_tri_counts)
 # print("Trigram counts in ", infile, ", sorted numerically:")
 # for tri_count in sorted(tri_counts.items(), key=lambda x:x[1], reverse = True):
 #     print(tri_count[0], ": ", str(tri_count[1]))
-
-
