@@ -49,15 +49,6 @@ with open(infile) as f:
             for char in trigram:
                 char_list.append(char)
 
-# with open(infile) as f:
-#     for line in f:
-#         line = preprocess_line(line) 
-#         for j in range(len(line)-(2)):
-#             bigram = line[j:j+2]
-#             tri_counts[bigram] += 1
-#             for char in bigram:
-#                 char_list.append(char)
-
 # Vocabulary = sorted set of characters len = 29
 char_set = sorted(set(char_list))
 
