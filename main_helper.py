@@ -30,8 +30,8 @@ infile = sys.argv[1] #get input argument: the training file
 
 
 
-# makes a list to store list of all characters found in training document
-char_list = []
+# initialise the list for the vocabulary ∑ from characters found in training document
+vocabulary = []
 
 #This bit of code gives an example of how you might extract trigram counts
 #from a file, line by line. If you plan to use or modify this code,
@@ -39,43 +39,37 @@ char_list = []
 #beginning and end of each line. Depending on how you write the rest of
 #your program, you may need to modify this code.
 
-
 with open(infile) as f:
     for line in f:
         line = preprocess_line(line) 
         for j in range(len(line)-(3)):
             trigram = line[j:j+3]
             tri_counts[trigram] += 1
-            for char in trigram:
-                char_list.append(char)
+            for char in trigram: # append characters to vocabulary list
+                vocabulary.append(char)
 
-# Vocabulary = sorted set of characters len = 29
-char_set = sorted(set(char_list))
+# Vocabulary ∑ = sorted set of characters len = 29
+vocabulary = sorted(set(vocabulary))
 
 # cartesian product of all possible bigrams based on character set. len = 841
-all_bi_counts = list(product(char_set, char_set))
+all_bi_counts = [''.join(bigram) for bigram in product(vocabulary, repeat=2)]
 
-# all_tri_counts holds a dictionary of all possible bigrams from vocabulary (all_bi_counts) as keys, with the values of each bigram being another dictionary: here, keys
+# all_tri_counts is a dictionary containing possible bigrams from vocabulary (all_bi_counts) as keys, with the values of each bigram being another dictionary: here, keys
 # are all members of vocab and the corresponding values stored have the count values based on training data 
 all_tri_counts = {}
 for i in all_bi_counts:
-    all_tri_counts[i] = {c:0 for c in char_set}
+    all_tri_counts[i] = {c:0 for c in vocabulary}
 
+## fits counts from tri_counts (training) into all_tri_counts
+for trigram, count in tri_counts.items():
+    bigram = trigram[:2] 
+    next_char = trigram[2]
+
+    # Update the count for the next character
+    all_tri_counts[bigram][next_char] += count
 
 
 print(all_tri_counts)
-
-
-## EXAMPLE OF HOW TO IMPOSE tri_counts ONTO all_tri_counts:
-# key=ab:value={keys=(vocab_i:values=count in tri_counts}
-
-# for bigram in all_tri_counts.keys(): ## Look through every possible bigram from vocab 
-#   for i in tri_counts.keys(): ## for every possible bigram from vocab, look through trigram list tri_counts
-#       if bigram == i[0:1]: # if bigram is the same as the first two letters in trigram, 
-#           all_tri_counts[bigram][i] = tri_counts[i] ## access nested dictionary by key: bigram, then key: trigram
-#                                                       ## change count of this trigram w tri_counts
-#           
-
 
 
 # #Some example code that prints out the counts. For small input files
