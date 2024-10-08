@@ -1,0 +1,50 @@
+import re
+import sys
+import random
+from math import log
+from collections import defaultdict
+
+def read_txt_file(filename):
+    """
+    This function takes a txt file in the format of model-br.en and outputs a dictionary of dictionaries
+    so that each probability is one of the values of the nested dictionary.
+    :param filename
+    :return: dictionary of dictionaries
+    """
+
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        keys = sorted(list(set([y[0:2] for y in lines])))
+        prob_dict = {i: {} for i in keys}
+        for j in lines:
+            req_dic = prob_dict[j[:2]]
+            req_dic[j[2]] = float(j[3:])
+    return prob_dict
+
+mm = read_txt_file("model-br.en")
+
+
+
+def generate_string(model, no_char):
+    """
+    Takes the model as dictionary of dictionaries and generates a random string of characters.
+    :param model:
+    :param no_char (number of characters in string)
+    :return:
+    """
+    string = "##"
+    for i in range(no_char):
+        if string[-1] == "#" and string [-2] != "#":
+            string = string + "\n##"
+        else:
+            string = string
+
+        new_dict = model[string[-2:]]
+        new_char = random.choices(list(new_dict.keys()), list(new_dict.values()))
+        string = string + new_char[0]
+    return string
+
+test_model = {'##':{'a':0.2, 'b':0.8, '#':0.0}, '#a':{'a':0.2, 'b':0.7, '#':0.1},'#b':{'a':0.15, 'b':0.75, '#':0.1},'aa':{'a':0.4, 'b':0.5, '#':0.1},'ab':{'a':0.6, 'b':0.3, '#':0.1},'ba':{'a':0.25, 'b':0.65, '#':0.1},'bb':{'a':0.5, 'b':0.4, '#':0.1} }
+
+#print(generate_string(test_model, 300))
+print(generate_string(mm, 300))
