@@ -12,10 +12,12 @@ tri_counts=defaultdict(int) #counts of all trigrams in input
 
 
 def preprocess_line(line):
-    x = re.sub(r'[^A-Za-z0-9\s\.]+', "", line)
+    x = re.sub(r'[^A-Za-z0-9\t\.]+', "", line)
     # convert all digits to 0
     x = re.sub(r'\d', "0", x)
-        
+
+    # add start of sequence and end of sequence character '#' to each sequence 
+    x = f"##{x}#" 
 
     return x.lower()
 
@@ -25,7 +27,6 @@ def preprocess_line(line):
 if len(sys.argv) != 2:
     print("Usage: ", sys.argv[0], "<training_file>")
     sys.exit(1)
-
 infile = sys.argv[1] #get input argument: the training file
 
 
@@ -48,11 +49,16 @@ with open(infile) as f:
             for char in trigram: # append characters to vocabulary list
                 vocabulary.append(char)
 
-# Vocabulary ∑ = sorted set of characters len = 29
+# Vocabulary ∑ = sorted set of characters (includes start and end sequence character '#')
 vocabulary = sorted(set(vocabulary))
 
 # cartesian product of all possible bigrams based on character set. len = 841
-all_bi_counts = [''.join(bigram) for bigram in product(vocabulary, repeat=2)]
+all_bi_counts = [''.join(bigram) for bigram in product(vocabulary, vocabulary)]
+
+# remove cases where '#' occurs as second character of bigram
+for bigram in all_bi_counts:
+    if bigram[1] == "#" and bigram != "##":
+        all_bi_counts.remove(bigram)
 
 # all_tri_counts is a dictionary containing possible bigrams from vocabulary (all_bi_counts) as keys, with the values of each bigram being another dictionary: here, keys
 # are all members of vocab and the corresponding values stored have the count values based on training data 
@@ -60,17 +66,14 @@ all_tri_counts = {}
 for i in all_bi_counts:
     all_tri_counts[i] = {c:0 for c in vocabulary}
 
-## fits counts from tri_counts (training) into all_tri_counts
+
+# fits counts from tri_counts (training) into all_tri_counts
 for trigram, count in tri_counts.items():
     bigram = trigram[:2] 
     next_char = trigram[2]
 
-    # Update the count for the next character
+    # update the count for the next character
     all_tri_counts[bigram][next_char] += count
-
-
-print(all_tri_counts)
-
 
 # #Some example code that prints out the counts. For small input files
 # #the counts are easy to look at but for larger files you can redirect
