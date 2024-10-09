@@ -12,12 +12,13 @@ tri_counts=defaultdict(int) #counts of all trigrams in input
 
 
 def preprocess_line(line):
-    x = re.sub(r'[^A-Za-z0-9\t\.]+', "", line)
+    x = re.sub(r'[^A-Za-z0-9\s\.]+', "", line)
+    x = re.sub(r'\n', '', x)
     # convert all digits to 0
     x = re.sub(r'\d', "0", x)
 
-    # add start of sequence and end of sequence character '#' to each sequence 
-    x = f"##{x}#" 
+    # add start of sequence and end of sequence character '#' to each sequence
+    x = f"##{x}#"
 
     return x.lower()
 
