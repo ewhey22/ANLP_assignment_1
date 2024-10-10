@@ -1,71 +1,78 @@
-#Here are some libraries you're likely to use. You might want/need others as well.
+## Import the libraries we want.
 import re
-import sys
 from random import random
 from random import choices
 import random
-from math import log
 from collections import defaultdict
 from itertools import product
 import numpy as np
-import matplotlib.pyplot as plt
+
 
 def process(line):
     """
-    Takes a line of text and preprocesses it according to instrucs in task
-    :param line:
-    :return: processed line
+    Takes a line of text and preprocesses it according to instructions in task 4.3.1. We also look to add the characters
+    ## before each string and # at the end of each string to later be able to deal with line breaks.
+    :param line: string
+    :return: processed string
     """
     x = re.sub(r'[^A-Za-z0-9\s\.]+', "", line)
     x = re.sub(r'\n', '', x)
-    # convert all digits to 0
     x = re.sub(r'\d', "0", x)
-
-    # add start of sequence and end of sequence character '#' to each sequence
+    # Add start of sequence '##' and end of sequence character '#' to each sequence to represent line breaks.
     x = f"##{x}#"
 
     return x.lower()
 
 def splits_file(file):
     """
-    Takes an input file and splits it into training and validation docs.
-    :param file:
-    :return: a tuple with the first list a list of lines in training and the second a list of lines in validation.
+    Takes an input file and splits it into training and validation sets.
+    :param file: text file with several lines
+    :return: the first list is a list of lines for training dataset and the second a list of lines for validation.
     """
     with open(file, 'r') as f:
         lines = f.readlines()
+        #We shuffle the lines before splitting to avoid drawing from potentially different distributions at the start and end of a document.
         random.shuffle(lines)
-
+    #We take 80% of the doc as training and 20% as validation.
     split = int(0.8*len(lines))
     train_lines = lines[:split]
     val_lines = lines[split:]
     return train_lines, val_lines
 
 def create_count_dict():
+    """
+    Function creates the dictionary of dictionaries of all possible trigrams with count 0 for each trigram.
+    :return: dictionary of dictionaries containing all possible trigrams.
+    N.B. we don't allow sentences (i.e. lines) with only one character. So trigram "#g#" is not included.
+    """
+    #First we create trigrams with histories that do not include #
     char = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',' ','.', '0']
     char_hash = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',' ','.', '0','#']
     first_bigrams = [''.join(bigram) for bigram in product(char, char)]
     all_tri_counts = dict.fromkeys(first_bigrams)
     for i in first_bigrams:
         all_tri_counts[i] = dict.fromkeys(char_hash,0)
+    #Now we include the "##" history trigrams
     all_tri_counts['##'] = dict.fromkeys(char,0)
-    #Be careful here, we do not want to allow #g#!!!!
+    #Finally we include trigrams that start with # but not ## (so excludes #g#)
     for j in char:
         all_tri_counts[f'#{j}'] = dict.fromkeys(char,0)
     return all_tri_counts
 
 def true_count_dict(list_of_lines):
     """
-        Takes a file and returns a dictionary of dictionary of trigrams with the count of each trigram
-        :param file:
-        :return: dictionary of dictionary of trigrams with the count of each trigram
-        """
+    Takes a list of lines (i.e. list of strings) and returns a dictionary of dictionaries of trigrams with the count of
+    each trigram as observed in the list
+    :param list_of_lines: list of strings
+    :return: dictionary of dictionaries of trigrams with the count of each trigram observed within the strings in the
+    list
+    """
 
-    #First we count for all the trigrams that occur in the input file
-    tri_counts = defaultdict(int)  # counts of all trigrams in input
+    #First we count all the trigrams that occur in the input list of lines
+    tri_counts = defaultdict(int)
     for line in list_of_lines:
         line = process(line)
-        for j in range(len(line) - (2)):
+        for j in range(len(line) - 2):
             trigram = line[j:j + 3]
             tri_counts[trigram] += 1
 
@@ -76,16 +83,12 @@ def true_count_dict(list_of_lines):
 
     return dd
 
-
-
-## Now modify the counts using add-alpha
-
 def smoothed_probs(dd, alpha):
     """
     Takes a dictionary of counts and uses add-alpha smoothing (same alpha for each context) to get smoothed probs
     :param dd: dictionary of dictionaries with counts of each trigram
     :param alpha: smoothing hyperparamter
-    :return: smoothed counts dictionary
+    :return: dictionary of dictionaries with probabilites obtained using alpha smoothing
     """
     #First modify counts
     for i in dd.keys():
@@ -97,14 +100,14 @@ def smoothed_probs(dd, alpha):
         tot_count = sum(dd[i].values())
         for j in dd[i].keys():
             dd[i][j] = dd[i][j] / tot_count
-
     return dd
 
 def read_txt_file(filename):
     """
     This function takes a txt file in the format of model-br.en and outputs a dictionary of dictionaries
-    so that each probability is one of the values of the nested dictionary.
-    :param filename
+    so that each probability is one of the values of the nested dictionary.  It is worth noting that model-br.en
+    does have a probability for every possible trigram but does not accept ### or one-character lines (i.e. #g#)
+    :param filename: txt file
     :return: dictionary of dictionaries
     """
 
@@ -119,28 +122,38 @@ def read_txt_file(filename):
 
 def generate_string(model, no_char):
     """
-    Takes the model as dictionary of dictionaries and generates a random string of characters.
-    :param model:
-    :param no_char (number of characters in string)
-    :return:
+    Takes the model of dictionary of dictionaries and generates a random string of characters using a trigram model
+    and the conditional probabilities encoded within.
+    :param model: dictionary of dictionaries
+    :param no_char: number of characters in string we want to output
+    :return:a string generated from our model
     """
+    #Start the string off with ##
     string = "##"
     for i in range(no_char):
+        #First check if we need to start a new line or not - that is when we have a single # on its own as the last
+        #character.
         if string[-1] == "#" and string [-2] != "#":
             string = string + "\n##"
         else:
             string = string
-
+        #Look up the last two characters of the string and go to that dictionary.
         new_dict = model[string[-2:]]
+        #Make a random choice from the dictionary keys, using the probabilities as the weights.
         new_char = choices(list(new_dict.keys()), list(new_dict.values()))
         string = string + new_char[0]
     return string
 
 def perplexity(doc, model):
     """
-    Function takes in a test document (WHICH HAS NOT BEEN PREPROCESSED) and a model (of the form dictionary of dictionaries.
-    It outputs the perplexity of the document under this model
+    Function takes in a test document and a model to output the perplexity of the doc under that model.
+    :param doc: text file or list of lines from a text file
+    :param model: dictionary of dictionaries encoding the conditional probabilities of the model.
+    :return: the perplexity of the model
     """
+    #The way we have written the rest of code requires us to check if the doc is a text file or a list of strings first.
+    #We calculate the cross entropy first as this avoids problems with increasingly small numbers and computer
+    #accuracy.
 
     if type(doc) == list:
         logsum = 0
@@ -170,9 +183,18 @@ def perplexity(doc, model):
 
 
 def loop_alphas(list_of_lines_train, list_of_lines_val, list_of_alphas):
+    """
+    We train our model on a list of lines with different alphas and then compute the perplexity for each alpha on
+    the validation data.
+    :param list_of_lines_train: list of the training lines of data
+    :param list_of_lines_val: list of the validation lines of data
+    :param list_of_alphas: the alphas we want to try and test
+    :return: a dictionary with the alphas as keys and the perplexity on the validation data as values
+    WE MUST BE EXTREMELY CAREFUL HERE TO SEPARATE TRAINING AND VALIDATION DATA
+    """
     perplex = {}
+    dd = true_count_dict(list_of_lines_train)
     for aa in list_of_alphas:
-        dd = true_count_dict(list_of_lines_train)
         mod = smoothed_probs(dd, aa)
         perp = perplexity(list_of_lines_val, mod)
         perplex[aa] = perp
@@ -180,6 +202,12 @@ def loop_alphas(list_of_lines_train, list_of_lines_val, list_of_alphas):
 
 
 def modeller(file):
+    """
+    Function takes a file, splits it into training and validation sets, decides which alpha to use in our smoothing
+    and outputs the model using this optimal alpha smoothing.
+    :param file: text file
+    :return: dictionary of dictionaries containing the probabilities of each trigram for the model we choose.
+    """
     train,val = splits_file(file)
     hh = loop_alphas(train, val, np.arange(0.0001, 1, 0.05))
     alpha = min(hh, key=hh.get)
@@ -187,18 +215,48 @@ def modeller(file):
     mod = smoothed_probs(dd, alpha)
     return mod
 
+"""EXERCISE 4.3.1"""
+def process(line):
+    """
+    Takes a line of text and preprocesses it according to instructions in task 4.3.1. We also look to add the characters
+    ## before each string and # at the end of each string to later be able to deal with line breaks.
+    :param line: string
+    :return: processed string
+    """
+    x = re.sub(r'[^A-Za-z0-9\s\.]+', "", line)
+    x = re.sub(r'\n', '', x)
+    x = re.sub(r'\d', "0", x)
+    # Add start of sequence '##' and end of sequence character '#' to each sequence to represent line breaks.
+    x = f"##{x}#"
+
+    return x.lower()
+
+"""EXERCISE 4.3.2"""
+ #No coding
+
+"""EXERCISE 4.3.3"""
 
 eng_model = modeller("training.en")
+with open('ENG_MODEL.txt', "w") as f:
+    print(eng_model['ng'] , file=f)
+
+"""EXERCISE 4.3.4"""
+
+mm = read_txt_file("model-br.en")
+print("\nString generated from our model on English language training data:")
+print(generate_string(eng_model, 300))
+print("\nString generated from the model-br.en model:")
+print(generate_string(mm, 300))
+
+"""EXERCISE 4.3.5"""
+
 ger_model = modeller("training.de")
 esp_model = modeller("training.es")
-
-#print(generate_string(eng_model, 300))
-#print('------------------------------------------------')
-#print(generate_string(read_txt_file('model-br.en'),300))
-
 
 print(perplexity("test", eng_model))
 print(perplexity("test", ger_model))
 print(perplexity("test", esp_model))
+
+
 
 
