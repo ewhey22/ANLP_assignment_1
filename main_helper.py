@@ -12,7 +12,7 @@ tri_counts=defaultdict(int) #counts of all trigrams in input
 
 
 def preprocess_line(line):
-    x = re.sub(r'[^A-Za-z0-9\t\.]+', "", line)
+    x = re.sub(r'[^A-Za-z0-9 \t\.]+', "", line)
     # convert all digits to 0
     x = re.sub(r'\d', "0", x)
 
@@ -64,7 +64,8 @@ for bigram in all_bi_counts:
 # are all members of vocab and the corresponding values stored have the count values based on training data 
 all_tri_counts = {}
 for i in all_bi_counts:
-    all_tri_counts[i] = {c:0 for c in vocabulary}
+        all_tri_counts[i] = {c:0 for c in vocabulary}
+
 
 
 # fits counts from tri_counts (training) into all_tri_counts
@@ -74,6 +75,14 @@ for trigram, count in tri_counts.items():
 
     # update the count for the next character
     all_tri_counts[bigram][next_char] += count
+
+# removes trigrams like '#a#' and '###'
+for bigram, last_char in all_tri_counts.items():
+    if bigram[0] == '#':
+        del last_char['#']
+
+#print(all_tri_counts)
+
 
 # #Some example code that prints out the counts. For small input files
 # #the counts are easy to look at but for larger files you can redirect
