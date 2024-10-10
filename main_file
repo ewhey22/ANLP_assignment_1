@@ -1,0 +1,146 @@
+#Here are some libraries you're likely to use. You might want/need others as well.
+import re
+import sys
+from random import random
+from random import choices
+from math import log
+from collections import defaultdict
+from itertools import product
+import numpy as np
+
+def process(line):
+    """
+    Takes a line of text and preprocesses it according to instrucs in task
+    :param line:
+    :return: processed line
+    """
+    x = re.sub(r'[^A-Za-z0-9\s\.]+', "", line)
+    x = re.sub(r'\n', '', x)
+    # convert all digits to 0
+    x = re.sub(r'\d', "0", x)
+
+    # add start of sequence and end of sequence character '#' to each sequence
+    x = f"##{x}#"
+
+    return x.lower()
+
+def create_count_dict():
+    char = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',' ','.', '0']
+    char_hash = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',' ','.', '0','#']
+    first_bigrams = [''.join(bigram) for bigram in product(char, char)]
+    all_tri_counts = dict.fromkeys(first_bigrams)
+    for i in first_bigrams:
+        all_tri_counts[i] = dict.fromkeys(char_hash,0)
+    all_tri_counts['##'] = dict.fromkeys(char,0)
+    #Be careful here, we do not want to allow #g#!!!!
+    for j in char:
+        all_tri_counts[f'#{j}'] = dict.fromkeys(char,0)
+    return all_tri_counts
+
+def true_count_dict(file):
+    """
+        Takes a file and returns a dictionary of dictionary of trigrams with the count of each trigram
+        :param file:
+        :return: dictionary of dictionary of trigrams with the count of each trigram
+        """
+
+    #First we count for all the trigrams that occur in the input file
+    tri_counts = defaultdict(int)  # counts of all trigrams in input
+    with open(file) as f:
+        for line in f:
+            line = process(line)
+            for j in range(len(line) - (2)):
+                trigram = line[j:j + 3]
+                tri_counts[trigram] += 1
+
+    #Now we create our dictionary with all possible trigrams and add in the counts that we just found above
+    dd = create_count_dict()
+    for i in tri_counts.keys():
+        dd[i[0:2]][i[2]] = tri_counts[i]
+
+    return dd
+
+
+
+## Now modify the counts using add-alpha
+
+def smoothed_probs(dd, alpha):
+    """
+    Takes a dictionary of counts and uses add-alpha smoothing (same alpha for each context) to get smoothed probs
+    :param dd: dictionary of dictionaries with counts of each trigram
+    :param alpha: smoothing hyperparamter
+    :return: smoothed counts dictionary
+    """
+    #First modify counts
+    for i in dd.keys():
+        for j in dd[i].keys():
+            dd[i][j] += alpha
+
+    #Be careful when normalising as not all histories have the same possible third characters (### is not allowed etc)
+    for i in dd.keys():
+        tot_count = sum(dd[i].values())
+        for j in dd[i].keys():
+            dd[i][j] = dd[i][j] / tot_count
+
+    return dd
+
+def read_txt_file(filename):
+    """
+    This function takes a txt file in the format of model-br.en and outputs a dictionary of dictionaries
+    so that each probability is one of the values of the nested dictionary.
+    :param filename
+    :return: dictionary of dictionaries
+    """
+
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        keys = sorted(list(set([y[0:2] for y in lines])))
+        prob_dict = {i: {} for i in keys}
+        for j in lines:
+            req_dic = prob_dict[j[:2]]
+            req_dic[j[2]] = float(j[3:])
+    return prob_dict
+
+def generate_string(model, no_char):
+    """
+    Takes the model as dictionary of dictionaries and generates a random string of characters.
+    :param model:
+    :param no_char (number of characters in string)
+    :return:
+    """
+    string = "##"
+    for i in range(no_char):
+        if string[-1] == "#" and string [-2] != "#":
+            string = string + "\n##"
+        else:
+            string = string
+
+        new_dict = model[string[-2:]]
+        new_char = choices(list(new_dict.keys()), list(new_dict.values()))
+        string = string + new_char[0]
+    return string
+
+def perplexity(doc, model):
+    """
+    Function takes in a test document (WHICH HAS NOT BEEN PREPROCESSED) and a model (of the form dictionary of dictionaries.
+    It outputs the perplexity of the document under this model
+    """
+    with open(doc) as f:
+        logsum = 0
+        char_count = 0
+        for line in f:
+            line = preprocess_line(line)
+            print(line)
+            for i in range(len(line)-2):
+                dic = model[line[i:i+2]]
+                #print(dic)
+                prob = float(dic[line[i+2]])
+                #print(prob)
+                logsum += np.log2(prob)
+                char_count += 1
+                #print(logsum)
+        #print(char_count)
+        cross_ent = (-1/char_count)*logsum
+    return print(2**cross_ent)
+
+
