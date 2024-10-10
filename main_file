@@ -178,12 +178,27 @@ def loop_alphas(list_of_lines_train, list_of_lines_val, list_of_alphas):
         perplex[aa] = perp
     return perplex
 
-train,val = splits_file("training.en")
-hh = loop_alphas(train, val, np.arange(0.0001, 1, 0.05))
-plt.plot(hh.keys(), hh.values())
-plt.show()
+
+def modeller(file):
+    train,val = splits_file(file)
+    hh = loop_alphas(train, val, np.arange(0.0001, 1, 0.05))
+    alpha = min(hh, key=hh.get)
+    dd = true_count_dict(train)
+    mod = smoothed_probs(dd, alpha)
+    return mod
 
 
+eng_model = modeller("training.en")
+ger_model = modeller("training.de")
+esp_model = modeller("training.es")
 
+#print(generate_string(eng_model, 300))
+#print('------------------------------------------------')
+#print(generate_string(read_txt_file('model-br.en'),300))
+
+
+print(perplexity("test", eng_model))
+print(perplexity("test", ger_model))
+print(perplexity("test", esp_model))
 
 
