@@ -3,10 +3,12 @@ import re
 import sys
 from random import random
 from random import choices
+import random
 from math import log
 from collections import defaultdict
 from itertools import product
 import numpy as np
+import matplotlib.pyplot as plt
 
 def process(line):
     """
@@ -24,6 +26,21 @@ def process(line):
 
     return x.lower()
 
+def splits_file(file):
+    """
+    Takes an input file and splits it into training and validation docs.
+    :param file:
+    :return: a tuple with the first list a list of lines in training and the second a list of lines in validation.
+    """
+    with open(file, 'r') as f:
+        lines = f.readlines()
+        random.shuffle(lines)
+
+    split = int(0.8*len(lines))
+    train_lines = lines[:split]
+    val_lines = lines[split:]
+    return train_lines, val_lines
+
 def create_count_dict():
     char = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',' ','.', '0']
     char_hash = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',' ','.', '0','#']
@@ -37,7 +54,7 @@ def create_count_dict():
         all_tri_counts[f'#{j}'] = dict.fromkeys(char,0)
     return all_tri_counts
 
-def true_count_dict(file):
+def true_count_dict(list_of_lines):
     """
         Takes a file and returns a dictionary of dictionary of trigrams with the count of each trigram
         :param file:
@@ -46,12 +63,11 @@ def true_count_dict(file):
 
     #First we count for all the trigrams that occur in the input file
     tri_counts = defaultdict(int)  # counts of all trigrams in input
-    with open(file) as f:
-        for line in f:
-            line = process(line)
-            for j in range(len(line) - (2)):
-                trigram = line[j:j + 3]
-                tri_counts[trigram] += 1
+    for line in list_of_lines:
+        line = process(line)
+        for j in range(len(line) - (2)):
+            trigram = line[j:j + 3]
+            tri_counts[trigram] += 1
 
     #Now we create our dictionary with all possible trigrams and add in the counts that we just found above
     dd = create_count_dict()
@@ -125,22 +141,49 @@ def perplexity(doc, model):
     Function takes in a test document (WHICH HAS NOT BEEN PREPROCESSED) and a model (of the form dictionary of dictionaries.
     It outputs the perplexity of the document under this model
     """
-    with open(doc) as f:
+
+    if type(doc) == list:
         logsum = 0
         char_count = 0
-        for line in f:
-            line = preprocess_line(line)
-            print(line)
-            for i in range(len(line)-2):
-                dic = model[line[i:i+2]]
-                #print(dic)
-                prob = float(dic[line[i+2]])
-                #print(prob)
+        for line in doc:
+            line = process(line)
+            for i in range(len(line) - 2):
+                dic = model[line[i:i + 2]]
+                prob = float(dic[line[i + 2]])
                 logsum += np.log2(prob)
                 char_count += 1
-                #print(logsum)
-        #print(char_count)
-        cross_ent = (-1/char_count)*logsum
-    return print(2**cross_ent)
+        cross_ent = (-1 / char_count) * logsum
+
+    else:
+        with open(doc) as f:
+            logsum = 0
+            char_count = 0
+            for line in f:
+                line = process(line)
+                for i in range(len(line)-2):
+                    dic = model[line[i:i+2]]
+                    prob = float(dic[line[i+2]])
+                    logsum += np.log2(prob)
+                    char_count += 1
+            cross_ent = (-1/char_count)*logsum
+    return 2**cross_ent
+
+
+def loop_alphas(list_of_lines_train, list_of_lines_val, list_of_alphas):
+    perplex = {}
+    for aa in list_of_alphas:
+        dd = true_count_dict(list_of_lines_train)
+        mod = smoothed_probs(dd, aa)
+        perp = perplexity(list_of_lines_val, mod)
+        perplex[aa] = perp
+    return perplex
+
+train,val = splits_file("training.en")
+hh = loop_alphas(train, val, np.arange(0.0001, 1, 0.05))
+plt.plot(hh.keys(), hh.values())
+plt.show()
+
+
+
 
 
